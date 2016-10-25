@@ -1033,13 +1033,14 @@ int get9Counts(uint256 hash)
 // miner's coin base reward based on nBits
 int64_t GetProofOfWorkReward(int nHeight, int64_t nFees, uint256 prevHash)
 {
-    const int64_t nMinSubsidy = 1 * COIN;
+    const int nMinSubsidy = 0.01 * COIN;
     int halvings = nHeight / 500000;
     if (halvings >= 64) {
         return nMinSubsidy + nFees;
     }
 	int64_t nSubsidy = 420 * COIN;
 	if(nHeight == 1) {nSubsidy = 21000000 * COIN;}
+    if(nHeight > 17000) {nSubsidy = 4.2 * COIN;}
 
 	nSubsidy >>= halvings;
     if (nSubsidy < nMinSubsidy) {
