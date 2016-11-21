@@ -15,8 +15,6 @@
 #include <boost/algorithm/string/replace.hpp>
 #include <boost/filesystem.hpp>
 #include <boost/filesystem/fstream.hpp>
-#include <boost/random/mersenne_twister.hpp>
-#include <boost/random/uniform_int_distribution.hpp>
 
 #include "main.h"
 
@@ -1005,44 +1003,23 @@ CBigNum inline GetProofOfStakeLimit(int nHeight, unsigned int nTime)
     return bnProofOfWorkLimit; // return bnProofOfWorkLimit of none matched
 }
 
-int generateMTRandom(unsigned int s, int range)
-{
-	random::mt19937 gen(s);
-    random::uniform_int_distribution<> dist(0, range);
-    return dist(gen);
-}
-
-int get9Counts(uint256 hash)
-{
-	int count = 0;
-	std::string str = hash.ToString();
-	const char* cstr = str.c_str();
-
-	char* pc = (char*)cstr;
-	while(*pc != '\0')
-	{
-		if(*pc == '9')
-			++count;
-
-		++pc;
-	}
-
-	return count;
-}
-
 // miner's coin base reward based on nBits
-int64_t GetProofOfWorkReward(int nHeight, int64_t nFees, uint256 prevHash)
+int64_t GetProofOfWorkReward(int nHeight, int64_t nFees)
 {
     const int nMinSubsidy = 0.01 * COIN;
     int halvings = nHeight / 500000;
     if (halvings >= 64) {
         return nMinSubsidy + nFees;
     }
-	int64_t nSubsidy = 420 * COIN;
-	if(nHeight == 1) {nSubsidy = 21000000 * COIN;}
-    if(nHeight > 17000) {nSubsidy = 4.2 * COIN;}
+    int64_t nSubsidy = 420 * COIN;
+    if(nHeight == 1) {
+        nSubsidy = 21000000 * COIN;
+    }
+    if(nHeight > 17000) {
+        nSubsidy = 4.2 * COIN;
+    }
 
-	nSubsidy >>= halvings;
+    nSubsidy >>= halvings;
     if (nSubsidy < nMinSubsidy) {
         nSubsidy = nMinSubsidy;
     }
@@ -1716,6 +1693,17 @@ bool CBlock::ConnectBlock(CTxDB& txdb, CBlockIndex* pindex, bool fJustCheck)
 
     if (!control.Wait())
         return DoS(100, false);
+
+    if (IsProofOfWork() && pindex->nHeight > 27300)
+    {
+        int64_t nBlockReward = GetProofOfWorkReward(pindex->nHeight, nFees);
+
+        // Check coinbase reward
+        if (vtx[0].GetValueOut() > nBlockReward)
+            return error("CheckBlock() : coinbase reward exceeded (actual=%" PRId64 " vs calculated=%" PRId64 ")",
+                   vtx[0].GetValueOut(),
+                   nBlockReward);
+    }
 
     // track money supply and mint amount info
     pindex->nMint = nValueOut - nValueIn + nFees;
